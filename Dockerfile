@@ -4,6 +4,8 @@ FROM python:3.10-slim
 # 작업 디렉토리 설정
 WORKDIR /app
 
+COPY firebase-service-account.json ./
+
 # 종속성 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
