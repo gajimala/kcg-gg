@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware  # ✅ 추가
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 import os
@@ -8,7 +8,7 @@ from firebase_admin import credentials, db
 
 app = FastAPI()
 
-# ✅ CORS 허용 추가
+# CORS 허용 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,4 +41,11 @@ def get_requests():
     snapshot = ref.get()
     return snapshot if snapshot else {}
 
+# public 폴더에 있는 정적파일 서빙
 app.mount("/", StaticFiles(directory="public", html=True), name="static")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
