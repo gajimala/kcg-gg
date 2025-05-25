@@ -1,63 +1,52 @@
-import json
 import os
 import time
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 
+# Firebase Admin SDK 임포트
+import firebase_admin
+from firebase_admin import credentials, db
+
 app = FastAPI()
 
-REQUESTS_FILE = "/tmp/requests.json"  # 구조요청 저장 파일
+# Firebase 서비스 계정 JSON 파일 경로 (환경변수로 지정하거나 기본값 사용)
+FIREBASE_CRED_PATH = os.getenv("FIREBASE_CRED_PATH", "firebase-service-account.json")
 
-# 요청 모델 (lng로 통일)
+# Firebase Realtime Database URL
+# Firebase 콘솔 > Realtime Database > 데이터베이스 URL 복사해서 넣으세요
+FIREBASE_DB_URL = os.getenv("FIREBASE_DB_URL", "https://kcghelp-default-rtdb.firebaseio.com")
+
+# Firebase 앱이 초기화 되어있지 않으면 초기화 수행
+if not firebase_admin._apps:
+    cred = credentials.Certificate(FIREBASE_CRED_PATH)  # 서비스 계정 키 파일 로드
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': FIREBASE_DB_URL  # 데이터베이스 URL 설정
+    })
+
+# 구조 요청 데이터 모델 정의 (lat, lng, timestamp)
 class HelpRequest(BaseModel):
     lat: float
     lng: float
-    timestamp: float  # ms 단위
+    timestamp: float  # 타임스탬프는 ms 단위 예상
 
-# 구조 요청 기록
+# 구조 요청 POST API
 @app.post("/requests")
 def request_help(data: HelpRequest):
-    try:
-        if not os.path.exists(REQUESTS_FILE):
-            with open(REQUESTS_FILE, "w", encoding="utf-8") as f:
-                json.dump([], f)
+    # Realtime Database 내 'requests' 노드 참조
+    ref = db.reference('requests')
+    # 새로운 요청을 push 하여 고유키 생성 후 저장
+    new_ref = ref.push()
+    new_ref.set(data.dict())
+    return {"status": "ok"}
 
-        with open(REQUESTS_FILE, "r", encoding="utf-8") as f:
-            requests = json.load(f)
-
-        now = time.time() * 1000
-        recent_requests = [
-            r for r in requests if now - r.get("timestamp", 0) < 86400000
-        ]
-
-        recent_requests.append(data.dict())
-
-        with open(REQUESTS_FILE, "w", encoding="utf-8") as f:
-            json.dump(recent_requests, f, ensure_ascii=False, indent=2)
-
-        return {"status": "ok", "count": len(recent_requests)}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-# 구조 요청 전체 확인
+# 구조 요청 전체 GET API
 @app.get("/requests")
 def get_requests():
-    try:
-        with open(REQUESTS_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    ref = db.reference('requests')
+    snapshot = ref.get()
+    # 데이터가 없으면 빈 딕셔너리 반환
+    return snapshot if snapshot else {}
 
-# lifesavers.json 반환
-@app.get("/lifesavers")
-def get_lifesavers():
-    try:
-        with open("public/lifesavers.json", encoding="utf-8") as f:
-            data = json.load(f)
-        return data
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-# 정적 파일 서빙 (맨 마지막에 위치해야 함)
+# 정적 파일 서빙 (public 폴더)
 app.mount("/", StaticFiles(directory="public", html=True), name="static")
