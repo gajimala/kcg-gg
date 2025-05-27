@@ -220,24 +220,15 @@
         lat: myLat,
         lng: myLng,
         timestamp: Date.now()
+      })
+      .then(() => {
+        alert("구조 요청이 접수되었습니다.");
+      })
+      .catch((err) => {
+        alert("요청 저장 실패: " + err);
       });
 
-      // 서버 API에도 저장
-      fetch("https://kcg-1099287947809.us-central1.run.app/requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat: myLat, lng: myLng, timestamp: Date.now() })
-      })
-      .then(res => {
-        if (res.ok) {
-          alert("구조 요청이 접수되었습니다.");
-        } else {
-          alert("서버 오류로 요청 전송 실패");
-        }
-      })
-      .catch(err => {
-        alert("요청 실패: " + err);
-      });
+      // 서버 API 호출 부분 삭제함
     } else {
       alert("현재 위치를 가져올 수 없습니다.");
     }
