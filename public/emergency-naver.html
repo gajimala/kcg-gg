@@ -244,4 +244,52 @@
   });
 
   document.getElementById('mapTypeSelector').addEventListener('click', function() {
-    if (map.getMapTypeId
+    if (map.getMapTypeId() === naver.maps.MapTypeId.NORMAL) {
+      map.setMapTypeId(naver.maps.MapTypeId.SATELLITE);
+      this.textContent = "일반 지도";
+    } else {
+      map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
+      this.textContent = "위성 지도";
+    }
+  });
+
+  document.getElementById('sosButton').addEventListener('click', function() {
+    if (myLat && myLng) {
+      const agree = confirm("[위치정보 제공 동의]\n구조 요청 시 현재 위치가 전송되며, 요청 정보는 24시간 뒤 자동 삭제됩니다.\n계속하시겠습니까?");
+      if (!agree) return;
+
+      // 기존 서버 API 전송
+      fetch("https://kcg-1099287947809.us-central1.run.app/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: myLat, lng: myLng, timestamp: Date.now() })
+      })
+      .then(res => {
+        if (res.ok) {
+          alert("구조 요청이 접수되었습니다.");
+        } else {
+          alert("전송 실패: 서버 오류가 발생했습니다.");
+        }
+      })
+      .catch(() => {
+        alert("전송 실패: 네트워크 오류가 발생했습니다.");
+      });
+
+      // Firebase Realtime Database에 기록 추가
+      const sosRef = ref(database, 'sos_requests');
+      push(sosRef, {
+        lat: myLat,
+        lng: myLng,
+        timestamp: Date.now()
+      }).catch(error => {
+        console.error("Firebase 기록 실패:", error);
+      });
+
+    } else {
+      alert("현재 위치를 감지할 수 없습니다.");
+    }
+  });
+
+</script>
+</body>
+</html>
