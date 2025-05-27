@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>구조 요청 확인</title>
-  <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=d02572eca2dd38bbbbb6692254d51bb7"></script>
+  <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=d02572eca2dd38bbbbb6692254d51bb7&libraries=services"></script>
 
   <!-- Firebase SDK -->
   <script type="module">
@@ -29,6 +29,8 @@
         center: new kakao.maps.LatLng(37.5665, 126.9780),
         level: 8
       });
+
+      const geocoder = new kakao.maps.services.Geocoder();
 
       function decimalToDMS(degrees) {
         const d = Math.floor(degrees);
@@ -69,19 +71,32 @@
             infoWindow.open(map, marker);
           });
 
-          // 테이블 행 생성
+          // 테이블 행 생성 - 행정구역 칸은 빈칸으로 먼저 생성
           const row = document.createElement('tr');
           row.style.cursor = 'pointer';
           row.innerHTML = `
             <td>${date.toLocaleString()}</td>
             <td>${latDMS}</td>
             <td>${lngDMS}</td>
+            <td class="addressCell">행정구역 불러오는 중...</td>
           `;
           row.addEventListener('click', () => {
             map.setCenter(pos);
           });
-
           tableBody.appendChild(row);
+
+          // 위도/경도로 행정구역명 조회
+          geocoder.coord2Address(req.lng, req.lat, (result, status) => {
+            if (status === kakao.maps.services.Status.OK) {
+              // 법정동 정보 가져오기 (result[0]에 주소 정보)
+              // 예: result[0].region_2depth_name = '강릉시'
+              const region = result[0].region_2depth_name || "정보없음";
+              row.querySelector('.addressCell').textContent = region;
+            } else {
+              row.querySelector('.addressCell').textContent = "주소 조회 실패";
+            }
+          });
+
         });
       });
     });
@@ -131,6 +146,7 @@
           <th>요청 시간</th>
           <th>위도</th>
           <th>경도</th>
+          <th>행정구역</th>
         </tr>
       </thead>
       <tbody id="tableBody">
