@@ -72,11 +72,29 @@
 <button id="mapTypeSelector">위성 지도</button>
 <button id="sosButton">🚨 구조 요청</button>
 
-<script>
-  // 위치정보 제공을 위한 팝업을 띄우는 코드
+<script type="module">
+  // Firebase 모듈 임포트
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+  // Firebase 설정 (사용자 환경에 맞게 수정)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDAWuBw94gzYiPrUTOY41zque2WvgCnRj4",
+    authDomain: "kcghelp-cf3e4.firebaseapp.com",
+    databaseURL: "https://kcghelp-cf3e4-default-rtdb.firebaseio.com",
+    projectId: "kcghelp-cf3e4",
+    storageBucket: "kcghelp-cf3e4.firebasestorage.app",
+    messagingSenderId: "374111271871",
+    appId: "1:374111271871:web:d1cf45fdc2a93930c77f0a",
+    measurementId: "G-DGDBZ38LW4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+
+  // 기존 window.onload 위치정보 허용 팝업
   window.onload = function() {
     if (navigator.geolocation) {
-      // 위치정보 제공을 요청하는 코드
       navigator.geolocation.getCurrentPosition(function(position) {
         console.log("위치 제공 수락됨", position.coords.latitude, position.coords.longitude);
       }, function(error) {
@@ -226,42 +244,4 @@
   });
 
   document.getElementById('mapTypeSelector').addEventListener('click', function() {
-    if (map.getMapTypeId() === naver.maps.MapTypeId.SATELLITE) {
-      map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-      this.textContent = '위성 지도';
-    } else {
-      map.setMapTypeId(naver.maps.MapTypeId.SATELLITE);
-      this.textContent = '일반 지도';
-    }
-  });
-
-  document.getElementById('sosButton').addEventListener('click', function() {
-    if (myLat && myLng) {
-      const agree = confirm("[위치정보 제공 동의]\n구조 요청 시 현재 위치가 전송되며, 요청 정보는 24시간 뒤 자동 삭제됩니다.\n계속하시겠습니까?");
-      if (!agree) return;
-
-      fetch("https://kcg-1099287947809.us-central1.run.app/requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ lat: myLat, lng: myLng, timestamp: Date.now() })
-      })
-      .then(res => {
-        if (res.ok) {
-          alert("구조 요청이 접수되었습니다.");
-        } else {
-          alert("전송 실패: 서버 오류가 발생했습니다.");
-        }
-      })
-      .catch(() => {
-        alert("전송 실패: 네트워크 오류가 발생했습니다.");
-      });
-    } else {
-      alert("현재 위치를 감지할 수 없습니다.");
-    }
-  });
-</script>
-
-</body>
-</html>
+    if (map.getMapTypeId
