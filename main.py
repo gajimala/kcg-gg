@@ -1,51 +1,63 @@
+import json
+import os
+import time
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-import os
-import firebase_admin
-from firebase_admin import credentials, db
 
 app = FastAPI()
 
-# CORS 허용 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+REQUESTS_FILE = "/tmp/requests.json"  # 구조요청 저장 파일
 
-FIREBASE_CRED_PATH = os.getenv("FIREBASE_CRED_PATH", "firebase-service-account.json")
-FIREBASE_DB_URL = os.getenv("FIREBASE_DB_URL", "https://kcghelp-default-rtdb.firebaseio.com")
-
-if not firebase_admin._apps:
-    cred = credentials.Certificate(FIREBASE_CRED_PATH)
-    firebase_admin.initialize_app(cred, {'databaseURL': FIREBASE_DB_URL})
-
+# 요청 모델 (lng로 통일)
 class HelpRequest(BaseModel):
     lat: float
     lng: float
-    timestamp: float
+    timestamp: float  # ms 단위
 
+# 구조 요청 기록
 @app.post("/requests")
 def request_help(data: HelpRequest):
-    ref = db.reference('requests')
-    ref.push(data.dict())
-    return {"status": "ok"}
+    try:
+        if not os.path.exists(REQUESTS_FILE):
+            with open(REQUESTS_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f)
 
+        with open(REQUESTS_FILE, "r", encoding="utf-8") as f:
+            requests = json.load(f)
+
+        now = time.time() * 1000
+        recent_requests = [
+            r for r in requests if now - r.get("timestamp", 0) < 86400000
+        ]
+
+        recent_requests.append(data.dict())
+
+        with open(REQUESTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(recent_requests, f, ensure_ascii=False, indent=2)
+
+        return {"status": "ok", "count": len(recent_requests)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# 구조 요청 전체 확인
 @app.get("/requests")
 def get_requests():
-    ref = db.reference('requests')
-    snapshot = ref.get()
-    return snapshot if snapshot else {}
+    try:
+        with open(REQUESTS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-# public 폴더에 있는 정적파일 서빙
+# lifesavers.json 반환
+@app.get("/lifesavers")
+def get_lifesavers():
+    try:
+        with open("public/lifesavers.json", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# 정적 파일 서빙 (맨 마지막에 위치해야 함)
 app.mount("/", StaticFiles(directory="public", html=True), name="static")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
