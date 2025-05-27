@@ -7,16 +7,9 @@
   <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=y6akfogygp"></script>
   <style>
     html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
-    /* 버튼들의 부모 요소(맵)에 relative 위치 지정 */
-    #map {
-      position: relative;
-    }
-
-    /* 내 위치로 이동 버튼 */
-    #locationButton {
+    #map { position: relative; }
+    #locationButton, #mapTypeSelector, #sosButton {
       position: absolute;
-      top: 10px; /* 위에서 10px */
-      left: 10px; /* 왼쪽에서 10px */
       padding: 6px 10px;
       background: rgba(255, 255, 255, 0.9);
       border: 1px solid #ccc;
@@ -25,59 +18,32 @@
       cursor: pointer;
       z-index: 100;
     }
-
-    /* 지도 전환 버튼 */
-    #mapTypeSelector {
-      position: absolute;
-      top: 50px; /* 위에서 50px */
-      left: 10px; /* 왼쪽에서 10px */
-      padding: 6px 10px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      z-index: 100;
-    }
-
-    /* 구조 요청 버튼 */
+    #locationButton { top: 10px; left: 10px; }
+    #mapTypeSelector { top: 50px; left: 10px; }
     #sosButton {
-      position: absolute;
-      top: 10px; /* 위에서 10px */
-      right: 10px; /* 오른쪽에서 10px */
+      top: 10px; right: 10px;
       background: #ffdddd;
       color: red;
       font-weight: bold;
-      border: 1px solid #ccc;
       border-radius: 8px;
       padding: 8px 12px;
-      font-size: 14px;
-      z-index: 100;
-      cursor: pointer;
-      width: auto;      /* 내용에 맞게 길이 조정 */
-      max-width: 150px; /* 선택: 버튼이 너무 길어지지 않도록 제한 */
+      max-width: 150px;
     }
-
-    /* 버튼들 hover 효과 */
     #locationButton:hover, #mapTypeSelector:hover, #sosButton:hover {
       background: rgba(240, 240, 240, 0.9);
     }
   </style>
 </head>
 <body>
-
 <div id="map"></div>
-
 <button id="locationButton">내 위치로 이동</button>
 <button id="mapTypeSelector">위성 지도</button>
 <button id="sosButton">🚨 구조 요청</button>
 
 <script type="module">
-  // Firebase 모듈 임포트
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
   import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-  // Firebase 설정 (사용자 환경에 맞게 수정)
   const firebaseConfig = {
     apiKey: "AIzaSyDAWuBw94gzYiPrUTOY41zque2WvgCnRj4",
     authDomain: "kcghelp-cf3e4.firebaseapp.com",
@@ -92,20 +58,6 @@
   const app = initializeApp(firebaseConfig);
   const database = getDatabase(app);
 
-  // 기존 window.onload 위치정보 허용 팝업
-  window.onload = function() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(function(position) {
-        console.log("위치 제공 수락됨", position.coords.latitude, position.coords.longitude);
-      }, function(error) {
-        console.error("위치 제공 거부됨:", error);
-        alert("위치 정보 제공을 허용해야 합니다.");
-      });
-    } else {
-      alert("위치 정보 제공을 지원하지 않는 브라우저입니다.");
-    }
-  };
-
   var map = new naver.maps.Map('map', {
     center: new naver.maps.LatLng(37.5665, 126.9780),
     zoom: 17,
@@ -119,6 +71,19 @@
   var myLng = null;
   var watchId = null;
   var infoWindow = new naver.maps.InfoWindow();
+
+  window.onload = function() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        console.log("위치 제공 수락됨", position.coords.latitude, position.coords.longitude);
+      }, function(error) {
+        console.error("위치 제공 거부됨:", error);
+        alert("위치 정보 제공을 허용해야 합니다.");
+      });
+    } else {
+      alert("위치 정보 제공을 지원하지 않는 브라우저입니다.");
+    }
+  };
 
   function startTracking() {
     let hasCenteredOnce = false;
@@ -152,17 +117,15 @@
         enableHighAccuracy: true,
         maximumAge: 0
       });
-    } else {
-      console.error("Geolocation 미지원");
     }
   }
 
   function loadMarkers() {
     fetch("/lifesavers")
-      .then(function(response) { return response.json(); })
-      .then(function(data) {
+      .then(response => response.json())
+      .then(data => {
         lifesavers = data;
-        data.forEach(function(item) {
+        data.forEach(item => {
           var lat = parseFloat(item.lat);
           var lng = parseFloat(item.lng);
 
@@ -187,10 +150,10 @@
                 return;
               }
 
-              var appname = 'com.example.app';
-              var nmapUrl = `nmap://route/car?slat=${myLat}&slng=${myLng}&dlat=${lat}&dlng=${lng}&appname=${appname}`;
+              const appname = 'com.example.app';
+              const nmapUrl = `nmap://route/car?slat=${myLat}&slng=${myLng}&dlat=${lat}&dlng=${lng}&appname=${appname}`;
 
-              var iwContent = `
+              const iwContent = `
                 <div style="padding:6px; font-size:13px;">
                   ${item.name || "인명구조함"}<br>
                   <button onclick="window.location.href='${nmapUrl}'" style="margin-top:5px; background:none; border:none; color:blue; text-decoration:underline; cursor:pointer;">
@@ -198,29 +161,25 @@
                   </button>
                 </div>
               `;
-
               infoWindow.setContent(iwContent);
               infoWindow.open(map, marker);
             });
           }
         });
-
         updateMarkers();
       })
-      .catch(function(error) {
-        console.error('lifesavers.json 불러오기 오류:', error);
-      });
+      .catch(err => console.error("lifesavers.json 불러오기 오류:", err));
   }
 
   function updateMarkers() {
     if (lifesavers.length === 0) return;
 
-    var bounds = map.getBounds();
-    var sw = bounds.getSW();
-    var ne = bounds.getNE();
+    const bounds = map.getBounds();
+    const sw = bounds.getSW();
+    const ne = bounds.getNE();
 
-    markers.forEach(function(marker, index) {
-      var item = lifesavers[index];
+    markers.forEach((marker, index) => {
+      const item = lifesavers[index];
       if (item.lat >= sw._lat && item.lat <= ne._lat &&
           item.lng >= sw._lng && item.lng <= ne._lng) {
         marker.setMap(map);
@@ -231,14 +190,12 @@
   }
 
   naver.maps.Event.addListener(map, 'bounds_changed', updateMarkers);
-
   startTracking();
   loadMarkers();
 
-  document.getElementById('locationButton').addEventListener('click', function() {
+  document.getElementById('locationButton').addEventListener('click', () => {
     if (myLat && myLng) {
-      const center = new naver.maps.LatLng(myLat, myLng);
-      map.setCenter(center);
+      map.setCenter(new naver.maps.LatLng(myLat, myLng));
       map.setZoom(17);
     }
   });
@@ -258,7 +215,14 @@
       const agree = confirm("[위치정보 제공 동의]\n구조 요청 시 현재 위치가 전송되며, 요청 정보는 24시간 뒤 자동 삭제됩니다.\n계속하시겠습니까?");
       if (!agree) return;
 
-      // 기존 서버 API 전송
+      // Firebase에 저장
+      push(ref(database, "requests"), {
+        lat: myLat,
+        lng: myLng,
+        timestamp: Date.now()
+      });
+
+      // 서버 API에도 저장
       fetch("https://kcg-1099287947809.us-central1.run.app/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -268,28 +232,16 @@
         if (res.ok) {
           alert("구조 요청이 접수되었습니다.");
         } else {
-          alert("전송 실패: 서버 오류가 발생했습니다.");
+          alert("서버 오류로 요청 전송 실패");
         }
       })
-      .catch(() => {
-        alert("전송 실패: 네트워크 오류가 발생했습니다.");
+      .catch(err => {
+        alert("요청 실패: " + err);
       });
-
-      // Firebase Realtime Database에 기록 추가
-      const sosRef = ref(database, 'sos_requests');
-      push(sosRef, {
-        lat: myLat,
-        lng: myLng,
-        timestamp: Date.now()
-      }).catch(error => {
-        console.error("Firebase 기록 실패:", error);
-      });
-
     } else {
-      alert("현재 위치를 감지할 수 없습니다.");
+      alert("현재 위치를 가져올 수 없습니다.");
     }
   });
-
 </script>
 </body>
 </html>
