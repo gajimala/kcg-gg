@@ -10,7 +10,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
-    // Firebase 설정 (본인의 Firebase 프로젝트 설정값으로 교체)
     const firebaseConfig = {
       apiKey: "AIzaSyDAWuBw94gzYiPrUTOY41zque2WvgCnRj4",
       authDomain: "kcghelp-cf3e4.firebaseapp.com",
@@ -22,18 +21,15 @@
       measurementId: "G-DGDBZ38LW4"
     };
 
-    // Firebase 초기화
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
-    // DOMContentLoaded 이벤트 안에서 기존 코드 실행
     window.addEventListener('DOMContentLoaded', () => {
       const map = new kakao.maps.Map(document.getElementById('map'), {
         center: new kakao.maps.LatLng(37.5665, 126.9780),
         level: 8
       });
 
-      // 도분초(DMS) 형식으로 변환하는 함수 (기존 함수 유지)
       function decimalToDMS(degrees) {
         const d = Math.floor(degrees);
         const minFloat = (degrees - d) * 60;
@@ -42,16 +38,12 @@
         return `${d}° ${m}' ${s}"`;
       }
 
-      const requestsList = document.getElementById('requestsList');
+      const tableBody = document.getElementById('tableBody');
 
-      // Firebase 실시간 데이터 읽기
       const requestsRef = ref(database, 'emergency/requests');
       onValue(requestsRef, (snapshot) => {
         const data = snapshot.val();
-
-        // 리스트와 지도 마커 초기화
-        requestsList.innerHTML = '';
-        // 기존 마커 제거 처리 필요 (optional)
+        tableBody.innerHTML = '';
 
         if (!data) return;
 
@@ -73,18 +65,23 @@
             content: `<div style="padding:6px; font-size:13px;">구조 요청<br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}</div>`
           });
 
-          kakao.maps.event.addListener(marker, 'click', function() {
+          kakao.maps.event.addListener(marker, 'click', function () {
             infoWindow.open(map, marker);
           });
 
-          const listItem = document.createElement('div');
-          listItem.innerHTML = `구조 요청 (${date.toLocaleString()})<br>위도: ${latDMS}, 경도: ${lngDMS}`;
-          listItem.style.cursor = 'pointer';
-          listItem.addEventListener('click', function() {
+          // 테이블 행 생성
+          const row = document.createElement('tr');
+          row.style.cursor = 'pointer';
+          row.innerHTML = `
+            <td>${date.toLocaleString()}</td>
+            <td>${latDMS}</td>
+            <td>${lngDMS}</td>
+          `;
+          row.addEventListener('click', () => {
             map.setCenter(pos);
           });
 
-          requestsList.appendChild(listItem);
+          tableBody.appendChild(row);
         });
       });
     });
@@ -99,23 +96,47 @@
       top: 10px;
       left: 10px;
       z-index: 100;
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.9);
       padding: 10px;
-      max-height: 200px;
+      max-height: 250px;
       overflow-y: auto;
-    }
-    #requestsList div {
-      margin-bottom: 5px;
-      cursor: pointer;
-      padding: 5px;
       border: 1px solid #ccc;
-      border-radius: 4px;
-      background: #f9f9f9;
+      border-radius: 6px;
+    }
+    #requestsList table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+    }
+    #requestsList th, #requestsList td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: center;
+    }
+    #requestsList th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    #requestsList tr:hover {
+      background-color: #eef;
     }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <div id="requestsList"></div>
+  <div id="requestsList">
+    <table>
+      <thead>
+        <tr>
+          <th>요청 시간</th>
+          <th>위도</th>
+          <th>경도</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <!-- 구조 요청 데이터가 여기에 추가됩니다 -->
+      </tbody>
+    </table>
+  </div>
 </body>
 </html>
