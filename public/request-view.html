@@ -1,9 +1,95 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>구조 요청 확인</title>
   <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=d02572eca2dd38bbbbb6692254d51bb7"></script>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+
+    // Firebase 설정 (본인의 Firebase 프로젝트 설정값으로 교체)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDAWuBw94gzYiPrUTOY41zque2WvgCnRj4",
+      authDomain: "kcghelp-cf3e4.firebaseapp.com",
+      databaseURL: "https://kcghelp-cf3e4-default-rtdb.firebaseio.com",
+      projectId: "kcghelp-cf3e4",
+      storageBucket: "kcghelp-cf3e4.appspot.com",
+      messagingSenderId: "374111271871",
+      appId: "1:374111271871:web:d1cf45fdc2a93930c77f0a",
+      measurementId: "G-DGDBZ38LW4"
+    };
+
+    // Firebase 초기화
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // DOMContentLoaded 이벤트 안에서 기존 코드 실행
+    window.addEventListener('DOMContentLoaded', () => {
+      const map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5665, 126.9780),
+        level: 8
+      });
+
+      // 도분초(DMS) 형식으로 변환하는 함수 (기존 함수 유지)
+      function decimalToDMS(degrees) {
+        const d = Math.floor(degrees);
+        const minFloat = (degrees - d) * 60;
+        const m = Math.floor(minFloat);
+        const s = ((minFloat - m) * 60).toFixed(2);
+        return `${d}° ${m}' ${s}"`;
+      }
+
+      const requestsList = document.getElementById('requestsList');
+
+      // Firebase 실시간 데이터 읽기
+      const requestsRef = ref(database, 'emergency/requests');
+      onValue(requestsRef, (snapshot) => {
+        const data = snapshot.val();
+
+        // 리스트와 지도 마커 초기화
+        requestsList.innerHTML = '';
+        // 기존 마커 제거 처리 필요 (optional)
+
+        if (!data) return;
+
+        Object.values(data).forEach((req) => {
+          if (!req.lat || !req.lng || !req.timestamp) return;
+
+          const pos = new kakao.maps.LatLng(req.lat, req.lng);
+          const marker = new kakao.maps.Marker({
+            position: pos,
+            map: map,
+            title: "구조 요청 위치"
+          });
+
+          const latDMS = decimalToDMS(req.lat);
+          const lngDMS = decimalToDMS(req.lng);
+          const date = new Date(req.timestamp);
+
+          const infoWindow = new kakao.maps.InfoWindow({
+            content: `<div style="padding:6px; font-size:13px;">구조 요청<br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}</div>`
+          });
+
+          kakao.maps.event.addListener(marker, 'click', function() {
+            infoWindow.open(map, marker);
+          });
+
+          const listItem = document.createElement('div');
+          listItem.innerHTML = `구조 요청 (${date.toLocaleString()})<br>위도: ${latDMS}, 경도: ${lngDMS}`;
+          listItem.style.cursor = 'pointer';
+          listItem.addEventListener('click', function() {
+            map.setCenter(pos);
+          });
+
+          requestsList.appendChild(listItem);
+        });
+      });
+    });
+  </script>
+
   <style>
     html, body, #map {
       height: 100%; margin: 0; padding: 0;
@@ -31,64 +117,5 @@
 <body>
   <div id="map"></div>
   <div id="requestsList"></div>
-
-<script>
-  const map = new kakao.maps.Map(document.getElementById('map'), {
-    center: new kakao.maps.LatLng(37.5665, 126.9780),
-    level: 8
-  });
-
-  // 도분초(DMS) 형식으로 변환하는 함수
-  function decimalToDMS(degrees) {
-    const d = Math.floor(degrees); // 도(°)
-    const minFloat = (degrees - d) * 60; // 분(')
-    const m = Math.floor(minFloat); // 분
-    const s = ((minFloat - m) * 60).toFixed(2); // 초(")
-
-    return `${d}° ${m}' ${s}"`;
-  }
-
-  // JSON 요청을 통해 서버에서 구조 요청 데이터를 가져옵니다
-  fetch("https://help-1099287947809.us-central1.run.app/requests")
-    .then(res => res.json())
-    .then(data => {
-      const requestsList = document.getElementById('requestsList');
-
-      data.forEach((req, index) => {
-        const pos = new kakao.maps.LatLng(req.lat, req.lng);
-        const marker = new kakao.maps.Marker({
-          position: pos,
-          map: map,
-          title: "구조 요청 위치"
-        });
-
-        const latDMS = decimalToDMS(req.lat);  // 위도를 도분초로 변환
-        const lngDMS = decimalToDMS(req.lng);  // 경도를 도분초로 변환
-        const date = new Date(req.timestamp);
-
-        const infoWindow = new kakao.maps.InfoWindow({
-          content: `<div style="padding:6px; font-size:13px;">구조 요청<br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}</div>`
-        });
-
-        // 마커 클릭 시 정보창 표시
-        kakao.maps.event.addListener(marker, 'click', function() {
-          infoWindow.open(map, marker);
-        });
-
-        // 요청 리스트 표시
-        const listItem = document.createElement('div');
-        listItem.innerHTML = `구조 요청 (${date.toLocaleString()})<br>위도: ${latDMS}, 경도: ${lngDMS}`;
-        listItem.addEventListener('click', function() {
-          map.setCenter(pos);  // 클릭 시 해당 위치로 지도 이동
-        });
-
-        requestsList.appendChild(listItem);
-      });
-    })
-    .catch(err => {
-      console.error("요청 데이터 로드 오류:", err);
-    });
-</script>
-
 </body>
 </html>
