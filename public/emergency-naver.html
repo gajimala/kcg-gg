@@ -109,7 +109,6 @@
               });
 
               marker.addListener('click', () => {
-                // 기존 infoWindow 닫기
                 infoWindows.forEach(iw => iw.close());
                 infoWindow.open(map, marker);
               });
@@ -141,8 +140,9 @@
           myMarker = new naver.maps.Marker({
             position: location,
             icon: {
-              content: `<div style="width:20px;height:20px;border-radius:50%;background:blue;border:2px solid white;"></div>`,
-              anchor: new naver.maps.Point(10, 10)
+              url: "hi.png",
+              size: new naver.maps.Size(20, 20),
+              anchor: new naver.maps.Point(10, 10),
             },
             map,
             zIndex: 1200 // 내 위치 마커는 가장 앞으로
