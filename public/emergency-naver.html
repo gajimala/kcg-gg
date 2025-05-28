@@ -101,9 +101,11 @@
             position: myLocation,
             map: map,
             icon: {
-              content: '<div style="width:12px; height:12px; background:#4285F4; border-radius:50%; border:2px solid white;"></div>',
-              anchor: new naver.maps.Point(6, 6)
-            }
+                url: "lifesaver-icon.png", // 수정: 앞에 '/' 제거
+                size: new naver.maps.Size(40, 45),
+                origin: new naver.maps.Point(0, 0),
+                anchor: new naver.maps.Point(20, 45),
+              }
           });
         }
 
