@@ -1,61 +1,52 @@
-<!DOCTYPE html> 
+<!-- naver.html -->
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>인명구조함 지도 (네이버 앱용)</title>
-
-  <!-- ✅ 네이버 지도 API: ncpKeyId 사용 -->
-  <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=y6akfogygp"></script>
-
-  <!-- ✅ 지도 스타일 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>인명구조함 지도 (네이버 + Firebase)</title>
+  <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=m3sgo9lwjr"></script>
   <style>
     html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
-    #map { position: relative; }
-
     #locationButton, #mapTypeSelector, #sosButton {
       position: absolute;
+      z-index: 100;
       padding: 6px 10px;
-      background: rgba(255, 255, 255, 0.9);
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 14px;
       cursor: pointer;
-      z-index: 100;
     }
-
-    #locationButton { top: 10px; left: 10px; }
-    #mapTypeSelector { top: 50px; left: 10px; }
-
+    #locationButton, #mapTypeSelector {
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
     #sosButton {
-      top: 10px; right: 10px;
+      top: 10px;
+      right: 10px;
       background: #ffdddd;
       color: red;
       font-weight: bold;
       border-radius: 8px;
       padding: 8px 12px;
-      max-width: 150px;
+      font-size: 14px;
     }
-
-    #locationButton:hover, #mapTypeSelector:hover, #sosButton:hover {
-      background: rgba(240, 240, 240, 0.9);
-    }
+    #locationButton:hover, #mapTypeSelector:hover { background: #f0f0f0; }
+    #sosButton:hover { background: #ffe0e0; }
+    #locationButton { top: 10px; left: 10px; }
+    #mapTypeSelector { top: 50px; left: 10px; }
   </style>
 </head>
 <body>
-  <!-- ✅ 지도 렌더링 영역 및 버튼 -->
   <div id="map"></div>
   <button id="locationButton">내 위치로 이동</button>
-  <button id="mapTypeSelector">위성 지도</button>
+  <button id="mapTypeSelector">위성뷰</button>
   <button id="sosButton">🚨 구조 요청</button>
 
-  <!-- ✅ Firebase 및 앱 로직 -->
   <script type="module">
-    // ✅ Firebase SDK 로드
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
     import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
 
-    // ✅ Firebase 초기 설정
     const firebaseConfig = {
       apiKey: "AIzaSyDAWuBw94gzYiPrUTOY41zque2WvgCnRj4",
       authDomain: "kcghelp-cf3e4.firebaseapp.com",
@@ -66,202 +57,115 @@
       appId: "1:374111271871:web:d1cf45fdc2a93930c77f0a",
       measurementId: "G-DGDBZ38LW4"
     };
-
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
-    // ✅ 구조 요청 저장 함수
-    function sendSosRequest(lat, lng) {
-      const requestsRef = ref(database, 'emergency/requests');
-      return push(requestsRef, {
-        lat: lat,
-        lng: lng,
-        timestamp: Date.now()
-      });
-    }
-
-    // ✅ 네이버 지도 초기화
-    var map = new naver.maps.Map(document.getElementById('map'), {
-      center: new naver.maps.LatLng(37.5665, 126.9780),
-      zoom: 17,
-      mapTypeId: naver.maps.MapTypeId.NORMAL
+    let myLat = 37.75, myLng = 128.9;
+    let map = new naver.maps.Map('map', {
+      center: new naver.maps.LatLng(myLat, myLng),
+      zoom: 12,
+      mapTypeControl: false
     });
 
-    var markers = [];
-    var lifesavers = [];
-    var myLocationMarker = null;
-    var myLat = null;
-    var myLng = null;
-    var watchId = null;
-    var infoWindow = new naver.maps.InfoWindow();
+    let myMarker = null;
+    let firstCentered = false;
 
-    // ✅ 첫 페이지 로드 시 위치 권한 요청
-    window.onload = function() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-          console.log("위치 제공 수락됨", position.coords.latitude, position.coords.longitude);
-        }, function(error) {
-          console.error("위치 제공 거부됨:", error);
-          alert("위치 정보 제공을 허용해야 합니다.");
-        });
-      } else {
-        alert("위치 정보 제공을 지원하지 않는 브라우저입니다.");
-      }
-    };
+    const markers = [];
 
-    // ✅ 위치 추적 시작
-    function startTracking() {
-      let hasCenteredOnce = false;
-
-      if (navigator.geolocation) {
-        watchId = navigator.geolocation.watchPosition(function(position) {
-          myLat = position.coords.latitude;
-          myLng = position.coords.longitude;
-          var myLocation = new naver.maps.LatLng(myLat, myLng);
-
-          if (myLocationMarker) {
-            myLocationMarker.setPosition(myLocation);
-          } else {
-            myLocationMarker = new naver.maps.Marker({
-              position: myLocation,
-              map: map,
-              icon: {
-                content: '<div style="width:12px;height:12px;background:#4285F4;border-radius:50%;border:2px solid white;"></div>',
-                anchor: new naver.maps.Point(6, 6)
-              }
-            });
-          }
-
-          if (!hasCenteredOnce) {
-            map.setCenter(myLocation);
-            hasCenteredOnce = true;
-          }
-        }, function(error) {
-          console.error("위치 추적 실패:", error);
-        }, {
-          enableHighAccuracy: true,
-          maximumAge: 0
-        });
-      }
+    function sendSosRequest(lat, lng) {
+      const requestsRef = ref(database, 'emergency/requests');
+      return push(requestsRef, { lat, lng, timestamp: Date.now() });
     }
 
-    // ✅ lifesavers.json 로드
     function loadMarkers() {
-      fetch("/lifesavers")
-        .then(response => response.json())
+      fetch("lifesavers.json")
+        .then(res => res.json())
         .then(data => {
-          lifesavers = data;
           data.forEach(item => {
-            var lat = parseFloat(item.lat);
-            var lng = parseFloat(item.lng);
-
-            if (!isNaN(lat) && !isNaN(lng)) {
-              var marker = new naver.maps.Marker({
-                position: new naver.maps.LatLng(lat, lng),
-                map: map,
-                title: item.name || "인명구조함",
+            if (item.lat && item.lng) {
+              const marker = new naver.maps.Marker({
+                position: new naver.maps.LatLng(item.lat, item.lng),
                 icon: {
                   url: "/help.png",
-                  size: new naver.maps.Size(27, 30),
-                  scaledSize: new naver.maps.Size(27, 30),
-                  origin: new naver.maps.Point(0, 0),
-                  anchor: new naver.maps.Point(13, 30)
-                }
+                  size: new naver.maps.Size(40, 45),
+                  anchor: new naver.maps.Point(20, 45),
+                },
+                map
               });
-              markers.push(marker);
-
-              // ✅ 마커 클릭 시 네이버 앱 길찾기
-              naver.maps.Event.addListener(marker, 'click', function() {
-                if (myLat === null || myLng === null) {
-                  alert('현재 위치를 가져올 수 없습니다.');
-                  return;
-                }
-
-                const appname = 'com.example.app';
-                const nmapUrl = `nmap://route/car?slat=${myLat}&slng=${myLng}&dlat=${lat}&dlng=${lng}&appname=${appname}`;
-
-                const iwContent = `
-                  <div style="padding:6px; font-size:13px;">
-                    ${item.name || "인명구조함"}<br>
-                    <button onclick="window.location.href='${nmapUrl}'" style="margin-top:5px; background:none; border:none; color:blue; text-decoration:underline; cursor:pointer;">
-                      길찾기 (네이버앱)
-                    </button>
-                  </div>
-                `;
-                infoWindow.setContent(iwContent);
+              marker.addListener('click', () => {
+                const url = `https://map.naver.com/v5/directions/-/141.6,37.6,,PLACE_POI/${item.lng},${item.lat},인명구조함,PLACE_POI`;
+                const content = `<div style="padding:6px; font-size:13px;">
+                  인명구조함<br>
+                  <button onclick="window.location.href='${url}'" style="margin-top:5px; background:none; border:none; color:blue; text-decoration:underline; cursor:pointer;">
+                    길찾기
+                  </button>
+                </div>`;
+                const infoWindow = new naver.maps.InfoWindow({ content });
                 infoWindow.open(map, marker);
               });
+              markers.push(marker);
             }
           });
           updateMarkers();
-        })
-        .catch(err => console.error("lifesavers.json 불러오기 오류:", err));
+        });
     }
 
-    // ✅ 현재 지도 화면 기준으로 마커 표시 여부 결정
     function updateMarkers() {
-      if (lifesavers.length === 0) return;
-
       const bounds = map.getBounds();
-      const sw = bounds.getSW();
-      const ne = bounds.getNE();
+      markers.forEach(marker => {
+        const visible = bounds.hasLatLng(marker.getPosition());
+        marker.setMap(visible ? map : null);
+      });
+    }
 
-      markers.forEach((marker, index) => {
-        const item = lifesavers[index];
-        if (item.lat >= sw._lat && item.lat <= ne._lat &&
-            item.lng >= sw._lng && item.lng <= ne._lng) {
-          marker.setMap(map);
+    naver.maps.Event.addListener(map, 'idle', updateMarkers);
+
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(pos => {
+        myLat = pos.coords.latitude;
+        myLng = pos.coords.longitude;
+        const location = new naver.maps.LatLng(myLat, myLng);
+        if (!myMarker) {
+          myMarker = new naver.maps.Marker({
+            position: location,
+            icon: {
+              content: `<div style="width:20px;height:20px;border-radius:50%;background:blue;border:2px solid white;"></div>`,
+              anchor: new naver.maps.Point(10, 10)
+            },
+            map
+          });
         } else {
-          marker.setMap(null);
+          myMarker.setPosition(location);
+        }
+
+        if (!firstCentered) {
+          map.setCenter(location);
+          map.setZoom(13);
+          firstCentered = true;
         }
       });
     }
 
-    // ✅ 지도 이동 시 마커 업데이트
-    naver.maps.Event.addListener(map, 'bounds_changed', updateMarkers);
-
-    // ✅ 위치 추적 및 마커 로드 실행
-    startTracking();
     loadMarkers();
 
-    // ✅ "내 위치로 이동" 버튼
-    document.getElementById('locationButton').addEventListener('click', () => {
-      if (myLat && myLng) {
-        map.setCenter(new naver.maps.LatLng(myLat, myLng));
-        map.setZoom(17);
-      }
-    });
+    document.getElementById('locationButton').onclick = () => {
+      if (myLat && myLng) map.setCenter(new naver.maps.LatLng(myLat, myLng));
+    };
 
-    // ✅ "지도 유형 토글" 버튼
-    document.getElementById('mapTypeSelector').addEventListener('click', function() {
-      if (map.getMapTypeId() === naver.maps.MapTypeId.NORMAL) {
-        map.setMapTypeId(naver.maps.MapTypeId.SATELLITE);
-        this.textContent = "일반 지도";
-      } else {
-        map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-        this.textContent = "위성 지도";
-      }
-    });
+    document.getElementById('mapTypeSelector').onclick = function () {
+      const isSatellite = map.getMapTypeId() === naver.maps.MapTypeId.SATELLITE;
+      map.setMapTypeId(isSatellite ? naver.maps.MapTypeId.BASIC : naver.maps.MapTypeId.SATELLITE);
+      this.textContent = isSatellite ? "위성뷰" : "일반 지도";
+    };
 
-    // ✅ 구조 요청 버튼 동작 (Firebase에 저장)
-    document.getElementById('sosButton').addEventListener('click', function() {
-      if (myLat && myLng) {
-        const agree = confirm("[위치정보 제공 동의]\n구조 요청 시 현재 위치가 전송되며, 요청 정보는 24시간 뒤 자동 삭제됩니다.\n계속하시겠습니까?");
-        if (!agree) return;
-
-        // ✅ Firebase에 구조 요청 저장
-        sendSosRequest(myLat, myLng)
-          .then(() => {
-            alert("구조 요청이 접수되었습니다.");
-          })
-          .catch((err) => {
-            alert("요청 저장 실패: " + err);
-          });
-
-      } else {
-        alert("현재 위치를 가져올 수 없습니다.");
-      }
-    });
+    document.getElementById('sosButton').onclick = () => {
+      if (!myLat || !myLng) return alert("현재 위치를 감지할 수 없습니다.");
+      const agree = confirm("[위치정보 제공 동의]\n구조 요청 시 현재 위치가 전송되며, 요청 정보는 24시간 뒤 자동 삭제됩니다.\n계속하시겠습니까?");
+      if (!agree) return;
+      sendSosRequest(myLat, myLng)
+        .then(() => alert("구조 요청이 접수되었습니다."))
+        .catch(() => alert("전송 실패: 네트워크 오류가 발생했습니다."));
+    };
   </script>
 </body>
 </html>
