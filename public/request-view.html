@@ -49,9 +49,11 @@
 
         if (!data) return;
 
-        Object.values(data).forEach((req) => {
-          if (!req.lat || !req.lng || !req.timestamp) return;
+        const requestsArray = Object.values(data)
+          .filter(req => req.lat && req.lng && req.timestamp)
+          .sort((a, b) => b.timestamp - a.timestamp);
 
+        requestsArray.forEach((req, index) => {
           const pos = new kakao.maps.LatLng(req.lat, req.lng);
           const marker = new kakao.maps.Marker({
             position: pos,
@@ -71,10 +73,10 @@
             infoWindow.open(map, marker);
           });
 
-          // 테이블 행 생성 - 행정구역 칸은 빈칸으로 먼저 생성
           const row = document.createElement('tr');
           row.style.cursor = 'pointer';
           row.innerHTML = `
+            <td>${index + 1}</td>
             <td>${date.toLocaleString()}</td>
             <td>${latDMS}</td>
             <td>${lngDMS}</td>
@@ -82,10 +84,10 @@
           `;
           row.addEventListener('click', () => {
             map.setCenter(pos);
+            map.setLevel(12);
           });
           tableBody.appendChild(row);
 
-          // 위도/경도로 행정구역명 조회
           geocoder.coord2Address(req.lng, req.lat, (result, status) => {
             if (status === kakao.maps.services.Status.OK && result.length > 0) {
               const region = result[0].address.region_2depth_name || "정보없음";
@@ -94,7 +96,6 @@
               row.querySelector('.addressCell').textContent = "주소 조회 실패";
             }
           });
-
         });
       });
     });
@@ -103,35 +104,44 @@
   <style>
     html, body, #map {
       height: 100%; margin: 0; padding: 0;
+      font-family: "Noto Sans KR", "맑은 고딕", Malgun Gothic, sans-serif;
+      background-color: #f9f9f9;
     }
     #requestsList {
       position: absolute;
-      top: 10px;
-      left: 10px;
+      top: 15px;
+      left: 15px;
       z-index: 100;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px;
-      max-height: 250px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 12px;
+      max-height: 300px;
+      width: 460px;
       overflow-y: auto;
       border: 1px solid #ccc;
-      border-radius: 6px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     #requestsList table {
       border-collapse: collapse;
       width: 100%;
-      font-size: 13px;
+      font-size: 14px;
+      color: #333;
     }
     #requestsList th, #requestsList td {
-      border: 1px solid #ccc;
-      padding: 6px;
+      border: 1px solid #ddd;
+      padding: 8px 10px;
       text-align: center;
+      vertical-align: middle;
+      user-select: none;
     }
     #requestsList th {
-      background-color: #f2f2f2;
-      font-weight: bold;
+      background-color: #4a90e2;
+      color: white;
+      font-weight: 600;
+      letter-spacing: 0.05em;
     }
     #requestsList tr:hover {
-      background-color: #eef;
+      background-color: #dbe9ff;
     }
   </style>
 </head>
@@ -141,6 +151,7 @@
     <table>
       <thead>
         <tr>
+          <th>순번</th>
           <th>요청 시간</th>
           <th>위도</th>
           <th>경도</th>
