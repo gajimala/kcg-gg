@@ -32,6 +32,9 @@
 
       const geocoder = new kakao.maps.services.Geocoder();
 
+      // infoWindow를 하나만 생성 (전역)
+      const infoWindow = new kakao.maps.InfoWindow({ removable: true });
+
       function decimalToDMS(degrees) {
         const d = Math.floor(degrees);
         const minFloat = (degrees - d) * 60;
@@ -65,11 +68,12 @@
           const lngDMS = decimalToDMS(req.lng);
           const date = new Date(req.timestamp);
 
-          const infoWindow = new kakao.maps.InfoWindow({
-            content: `<div style="padding:6px; font-size:13px;">구조 요청<br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}</div>`
-          });
-
+          // 클릭 시 하나의 infoWindow에 내용 설정 후 열기
           kakao.maps.event.addListener(marker, 'click', function () {
+            const content = `<div style="padding:6px; font-size:13px;">
+              <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}
+            </div>`;
+            infoWindow.setContent(content);
             infoWindow.open(map, marker);
           });
 
@@ -82,9 +86,16 @@
             <td>${lngDMS}</td>
             <td class="addressCell">행정구역 불러오는 중...</td>
           `;
+
           row.addEventListener('click', () => {
             map.setCenter(pos);
-            map.setLevel(12);
+            map.setLevel(5); // 더 확대된 줌 레벨로 변경 (필요 시 조절 가능)
+            // infoWindow도 열어서 위치 강조
+            const content = `<div style="padding:6px; font-size:13px;">
+              <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}
+            </div>`;
+            infoWindow.setContent(content);
+            infoWindow.open(map, marker);
           });
           tableBody.appendChild(row);
 
@@ -139,6 +150,8 @@
       color: white;
       font-weight: 600;
       letter-spacing: 0.05em;
+      white-space: nowrap; /* 순번 글자 세로 안되게 */
+      width: 50px; /* 순번 너비 적당히 */
     }
     #requestsList tr:hover {
       background-color: #dbe9ff;
