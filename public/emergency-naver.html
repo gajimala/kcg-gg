@@ -67,7 +67,7 @@
       });
     }
   
-  var map = new naver.maps.Map('map', {
+  var map = new naver.maps.Map(document.getElementById('map'), {
     center: new naver.maps.LatLng(37.5665, 126.9780),
     zoom: 17,
     mapTypeId: naver.maps.MapTypeId.NORMAL
