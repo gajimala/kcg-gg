@@ -68,22 +68,26 @@
           const lngDMS = decimalToDMS(req.lng);
           const date = new Date(req.timestamp);
 
-          // 클릭 시 하나의 infoWindow에 내용 설정 후 열기
+          // infoWindow 내용 수정: 위도/경도 한 줄, 줄바꿈 제거
           kakao.maps.event.addListener(marker, 'click', function () {
             const content = `<div style="padding:6px; font-size:13px;">
-              <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}
+              <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS} 경도: ${lngDMS}
             </div>`;
             infoWindow.setContent(content);
             infoWindow.open(map, marker);
           });
 
+          // 날짜는 toLocaleDateString() 과 toLocaleTimeString() 분리하여 두 줄로, 
+          // 위도/경도는 한 줄
+          const dateStr = date.toLocaleDateString();
+          const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
           const row = document.createElement('tr');
           row.style.cursor = 'pointer';
           row.innerHTML = `
             <td>${index + 1}</td>
-            <td>${date.toLocaleString()}</td>
-            <td>${latDMS}</td>
-            <td>${lngDMS}</td>
+            <td>${dateStr}<br>${timeStr}</td>
+            <td colspan="2">${latDMS} / ${lngDMS}</td>
             <td class="addressCell">행정구역 불러오는 중...</td>
           `;
 
@@ -92,7 +96,7 @@
             map.setLevel(5); // 더 확대된 줌 레벨로 변경 (필요 시 조절 가능)
             // infoWindow도 열어서 위치 강조
             const content = `<div style="padding:6px; font-size:13px;">
-              <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS}<br>경도: ${lngDMS}
+              <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS} 경도: ${lngDMS}
             </div>`;
             infoWindow.setContent(content);
             infoWindow.open(map, marker);
@@ -123,7 +127,7 @@
       top: 15px;
       left: 15px;
       z-index: 100;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.5); /* 투명도 50% */
       padding: 12px;
       max-height: 300px;
       width: 460px;
@@ -150,8 +154,8 @@
       color: white;
       font-weight: 600;
       letter-spacing: 0.05em;
-      white-space: nowrap; /* 순번 글자 세로 안되게 */
-      width: 50px; /* 순번 너비 적당히 */
+      white-space: nowrap;
+      width: 35px; /* 순번 너비 줄임 */
     }
     #requestsList tr:hover {
       background-color: #dbe9ff;
@@ -166,8 +170,7 @@
         <tr>
           <th>순번</th>
           <th>요청 시간</th>
-          <th>위도</th>
-          <th>경도</th>
+          <th colspan="2">위도 / 경도</th>
           <th>행정구역</th>
         </tr>
       </thead>
