@@ -31,8 +31,6 @@
       });
 
       const geocoder = new kakao.maps.services.Geocoder();
-
-      // infoWindow를 하나만 생성 (전역)
       const infoWindow = new kakao.maps.InfoWindow({ removable: true });
 
       function decimalToDMS(degrees) {
@@ -44,12 +42,11 @@
       }
 
       const tableBody = document.getElementById('tableBody');
-
       const requestsRef = ref(database, 'emergency/requests');
+
       onValue(requestsRef, (snapshot) => {
         const data = snapshot.val();
         tableBody.innerHTML = '';
-
         if (!data) return;
 
         const requestsArray = Object.values(data)
@@ -58,27 +55,11 @@
 
         requestsArray.forEach((req, index) => {
           const pos = new kakao.maps.LatLng(req.lat, req.lng);
-          const marker = new kakao.maps.Marker({
-            position: pos,
-            map: map,
-            title: "구조 요청 위치"
-          });
+          const marker = new kakao.maps.Marker({ position: pos, map, title: "구조 요청 위치" });
 
           const latDMS = decimalToDMS(req.lat);
           const lngDMS = decimalToDMS(req.lng);
           const date = new Date(req.timestamp);
-
-          // infoWindow 내용 수정: 위도/경도 한 줄, 줄바꿈 제거
-          kakao.maps.event.addListener(marker, 'click', function () {
-            const content = `<div style="padding:6px; font-size:13px;">
-              <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS} 경도: ${lngDMS}
-            </div>`;
-            infoWindow.setContent(content);
-            infoWindow.open(map, marker);
-          });
-
-          // 날짜는 toLocaleDateString() 과 toLocaleTimeString() 분리하여 두 줄로, 
-          // 위도/경도는 한 줄
           const dateStr = date.toLocaleDateString();
           const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
@@ -87,20 +68,21 @@
           row.innerHTML = `
             <td>${index + 1}</td>
             <td>${dateStr}<br>${timeStr}</td>
-            <td colspan="2">${latDMS} / ${lngDMS}</td>
-            <td class="addressCell">행정구역 불러오는 중...</td>
+            <td>${latDMS}</td>
+            <td>${lngDMS}</td>
+            <td class="addressCell">불러오는 중...</td>
           `;
 
           row.addEventListener('click', () => {
             map.setCenter(pos);
-            map.setLevel(5); // 더 확대된 줌 레벨로 변경 (필요 시 조절 가능)
-            // infoWindow도 열어서 위치 강조
+            map.setLevel(5);
             const content = `<div style="padding:6px; font-size:13px;">
               <strong>구조 요청</strong><br>${date.toLocaleString()}<br>위도: ${latDMS} 경도: ${lngDMS}
             </div>`;
             infoWindow.setContent(content);
             infoWindow.open(map, marker);
           });
+
           tableBody.appendChild(row);
 
           geocoder.coord2Address(req.lng, req.lat, (result, status) => {
@@ -127,27 +109,28 @@
       top: 15px;
       left: 15px;
       z-index: 100;
-      background: rgba(255, 255, 255, 0.5); /* 투명도 50% */
-      padding: 12px;
-      max-height: 300px;
-      width: 460px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      height: 160px;
       overflow-y: auto;
+      overflow-x: auto;
       border: 1px solid #ccc;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     #requestsList table {
       border-collapse: collapse;
-      width: 100%;
-      font-size: 14px;
-      color: #333;
+      width: auto;
+      min-width: 100%;
+      table-layout: auto;
+      white-space: nowrap;
     }
     #requestsList th, #requestsList td {
       border: 1px solid #ddd;
-      padding: 8px 10px;
+      padding: 6px 10px;
       text-align: center;
       vertical-align: middle;
-      user-select: none;
+      font-size: 13px;
     }
     #requestsList th {
       background-color: #4a90e2;
@@ -155,7 +138,6 @@
       font-weight: 600;
       letter-spacing: 0.05em;
       white-space: nowrap;
-      width: 35px; /* 순번 너비 줄임 */
     }
     #requestsList tr:hover {
       background-color: #dbe9ff;
@@ -170,7 +152,8 @@
         <tr>
           <th>순번</th>
           <th>요청 시간</th>
-          <th colspan="2">위도 / 경도</th>
+          <th>위도</th>
+          <th>경도</th>
           <th>행정구역</th>
         </tr>
       </thead>
